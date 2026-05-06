@@ -39,6 +39,10 @@ export function runAudit(
 
     if (!tool || !plan) continue;
 
+    // Clamp inputs to prevent mathematical impossibilities
+    const safeSeats = Math.max(1, input.seats);
+    const safeSpend = Math.max(0, input.monthlySpend);
+
     let recommendation: ToolAuditResult["recommendation"] = "keep";
     let recommendedAction = "Keep current plan";
     let monthlySavings = 0;
@@ -49,17 +53,17 @@ export function runAudit(
     const expectedMonthlySpend =
       plan.monthlyPrice !== null
         ? plan.type === "per_user"
-          ? plan.monthlyPrice * input.seats
+          ? plan.monthlyPrice * safeSeats
           : plan.monthlyPrice
-        : input.monthlySpend;
+        : safeSpend;
 
     // Check 1: Overpaying for current plan (paying more than listed price)
-    if (input.monthlySpend > expectedMonthlySpend && plan.monthlyPrice !== null) {
+    if (safeSpend > expectedMonthlySpend && plan.monthlyPrice !== null) {
       // Possible over-forecasting or paying for unused seats
       recommendation = "downgrade";
       recommendedAction = `Adjust seats to match actual team size`;
-      monthlySavings = input.monthlySpend - expectedMonthlySpend;
-      reasoning = `You are paying $${input.monthlySpend}/mo, but for ${input.seats} active seats on ${plan.name}, it should only cost $${expectedMonthlySpend}/mo. Removing unused seats saves you money.`;
+      monthlySavings = safeSpend - expectedMonthlySpend;
+      reasoning = `You are paying $${safeSpend.toFixed(2)}/mo, but for ${safeSeats} active seats on ${plan.name}, it should only cost $${expectedMonthlySpend.toFixed(2)}/mo. Removing unused seats saves you money.`;
     }
 
     // Check 2: Wrong plan for team size (e.g. on Teams plan but team size is 1)
@@ -75,8 +79,8 @@ export function runAudit(
       if (individualPlan && individualPlan.monthlyPrice !== null) {
         recommendation = "downgrade";
         recommendedAction = `Downgrade to ${tool.name} ${individualPlan.name}`;
-        const newCost = individualPlan.monthlyPrice * input.seats;
-        monthlySavings = input.monthlySpend - newCost;
+        const newCost = individualPlan.monthlyPrice * safeSeats;
+        monthlySavings = safeSpend - newCost;
         reasoning = `${plan.name} is designed for teams of ${plan.minUsers}+. Since your team is ${teamSize}, downgrading to ${individualPlan.name} saves you money without losing core capability.`;
       }
     }
@@ -85,22 +89,22 @@ export function runAudit(
     if (recommendation === "keep") {
       if (useCase === "coding" && input.toolId !== "windsurf" && plan.monthlyPrice && plan.monthlyPrice >= 20) {
         // Windsurf is $15/user for Pro
-        const windsurfProPrice = 15 * input.seats;
-        if (windsurfProPrice < input.monthlySpend) {
+        const windsurfProPrice = 15 * safeSeats;
+        if (windsurfProPrice < safeSpend) {
           recommendation = "switch";
           recommendedAction = "Switch to Windsurf Pro";
-          monthlySavings = input.monthlySpend - windsurfProPrice;
-          reasoning = `Windsurf offers similar AI coding capabilities at $15/user/month compared to your current $${(input.monthlySpend / input.seats).toFixed(2)}/user/month.`;
+          monthlySavings = safeSpend - windsurfProPrice;
+          reasoning = `Windsurf offers similar AI coding capabilities at $15/user/month compared to your current $${(safeSpend / safeSeats).toFixed(2)}/user/month.`;
         }
       }
     }
 
     // Check 4: Credex Discount
     // If the spend is high enough, we can offer ~20% off via Credex credits
-    if (recommendation === "keep" && input.monthlySpend > 50) {
+    if (recommendation === "keep" && safeSpend > 50) {
       recommendation = "keep"; // Still keep the tool, but use Credex
       recommendedAction = `Buy ${tool.name} credits via Credex`;
-      monthlySavings = input.monthlySpend * 0.2; // 20% discount assumption
+      monthlySavings = safeSpend * 0.2; // 20% discount assumption
       reasoning = `Your plan is optimal, but you can save ~20% ($${monthlySavings.toFixed(2)}/mo) by purchasing discounted ${tool.name} infrastructure credits through Credex.`;
       credexRelevant = true;
     }
@@ -111,7 +115,7 @@ export function runAudit(
       toolId: input.toolId,
       toolName: tool.name,
       currentPlan: plan.name,
-      currentMonthlySpend: input.monthlySpend,
+      currentMonthlySpend: safeSpend,
       recommendation,
       recommendedAction,
       monthlySavings,
@@ -120,17 +124,20 @@ export function runAudit(
     });
   }
 
-  // Check for consolidation (API vs Subscription)
-  const apiDirectSpend = userTools.find(t => t.planId.endsWith("_api") || t.planId.includes("api_direct"));
-  const subSpend = userTools.find(t => !t.planId.endsWith("_api") && !t.planId.includes("api_direct"));
+  // Check for consolidation (API vs Subscription) per tool
+  const uniqueToolIds = Array.from(new Set(userTools.map((t) => t.toolId)));
+  for (const tid of uniqueToolIds) {
+    const apiDirectSpend = userTools.find((t) => t.toolId === tid && (t.planId.endsWith("_api") || t.planId.includes("api_direct")));
+    const subSpend = userTools.find((t) => t.toolId === tid && (!t.planId.endsWith("_api") && !t.planId.includes("api_direct")));
 
-  // Find API vs Sub overlap in results to add a note
-  if (apiDirectSpend && subSpend) {
-    const apiResult = toolsResult.find(r => r.currentPlan === "API Direct" && r.toolId === apiDirectSpend.toolId);
-    if (apiResult && apiResult.recommendation === "keep") {
+    // Find API vs Sub overlap in results to add a note
+    if (apiDirectSpend && subSpend) {
+      const apiResult = toolsResult.find((r) => r.currentPlan === "API Direct" && r.toolId === tid);
+      if (apiResult && apiResult.recommendation === "keep") {
         apiResult.recommendation = "consolidate";
         apiResult.recommendedAction = "Consolidate API and Subscription usage";
         apiResult.reasoning = "You are paying for both direct API access and an individual subscription. Depending on usage volume, routing all usage through the API or upgrading the subscription may be more cost-effective.";
+      }
     }
   }
 
