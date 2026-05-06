@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Burnrate - AI Spend Audit
 
-## Getting Started
+Burnrate is a free web app that audits AI tool spend for startups. It instantly identifies overspend, recommends more optimal pricing tiers, suggests cheaper alternatives with similar capabilities, and serves as a lead generation asset for Credex's discounted AI infrastructure credits.
 
-First, run the development server:
+## Quick Start
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Prerequisites
+- Node.js 20+
+- Anthropic API Key
+- Supabase Project
+- Resend API Key
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install & Run Locally
+1. Clone the repository
+2. Run \`npm install\`
+3. Copy \`.env.example\` to \`.env.local\` and fill in the required keys
+4. Run \`npm run dev\`
+5. Open \`http://localhost:3000\`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Deploy
+Deploy easily to Vercel:
+1. Connect your GitHub repository to Vercel
+2. Add your environment variables in the Vercel dashboard
+3. Click "Deploy"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Decisions & Trade-offs
 
-## Learn More
+1. **Next.js App Router vs. React SPA**: Chose Next.js for its robust SSR capabilities, which are essential for generating dynamic Open Graph meta tags for shareable audit result URLs.
+2. **Supabase vs. Firebase**: Chose Supabase to get a real PostgreSQL backend. Relational querying will make it easier to analyze aggregated startup spend data later.
+3. **Hardcoded Pricing Engine vs. LLM Engine**: Used a deterministic, pure-function math engine for the core audit logic rather than an LLM. Pricing logic must be 100% defensible, predictable, and exact. LLMs are used only for the personalized text summary.
+4. **TailwindCSS vs. CSS Modules**: Chosen to rapidly iterate on a premium, dark-mode, "Obsidian Cinema" style UI without the bloat of external component libraries overriding styles.
+5. **localStorage Persistence**: Opted to persist the multi-step form state locally in the browser rather than maintaining a backend session, allowing for a zero-login, frictionless UX.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployed URL
+**Coming soon...**
