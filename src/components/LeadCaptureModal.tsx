@@ -35,7 +35,7 @@ export function LeadCaptureModal({ auditId, highSavings }: { auditId: string; hi
       } else {
         alert("Failed to submit. Please try again.");
       }
-    } catch (err) {
+    } catch {
       alert("Error submitting form.");
     } finally {
       setLoading(false);
@@ -59,7 +59,7 @@ export function LeadCaptureModal({ auditId, highSavings }: { auditId: string; hi
         
         {success ? (
           <div className="py-6 text-center text-green-400 font-medium">
-            Thanks! We've received your information.
+            Thanks! We&apos;ve received your information.
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-4">

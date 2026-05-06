@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { runAudit } from "@/lib/audit-engine";
 import { supabase } from "@/lib/supabase";
-import { saveAudit } from "@/lib/store";
 import { randomUUID } from "crypto";
 
 export async function POST(request: Request) {
@@ -16,7 +15,9 @@ export async function POST(request: Request) {
     // Run pure audit engine
     const auditResult = runAudit(tools, teamSize, useCase);
 
-    // Try Supabase first
+    let id: string;
+
+    // Try Supabase
     if (supabase) {
       const { data, error } = await supabase
         .from("audits")
@@ -34,17 +35,46 @@ export async function POST(request: Request) {
         .single();
 
       if (!error && data) {
-        return NextResponse.json({ id: data.id });
+        id = data.id;
+      } else {
+        console.error("Supabase insert error:", error);
+        id = randomUUID();
       }
-      console.error("Supabase insert error:", error);
+    } else {
+      id = randomUUID();
     }
 
-    // Fallback: in-memory store for local dev
-    const id = randomUUID();
-    saveAudit({ id, teamSize, useCase, tools, results: auditResult });
-    return NextResponse.json({ id });
+    // Always return full results so the client can display them immediately
+    return NextResponse.json({ id, ...auditResult });
   } catch (err) {
     console.error("Audit API Error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+// GET endpoint to fetch audit by ID (for shareable URLs)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  if (!supabase) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const { data, error } = await supabase
+    .from("audits")
+    .select("results")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: "Audit not found" }, { status: 404 });
+  }
+
+  const results = typeof data.results === "string" ? JSON.parse(data.results) : data.results;
+  return NextResponse.json(results);
 }

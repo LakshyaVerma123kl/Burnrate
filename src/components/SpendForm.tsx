@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PRICING_DATA, UseCase } from "@/lib/pricing-data";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,22 @@ export function SpendForm() {
   const [tools, setTools] = useState<FormTool[]>([]);
 
   useEffect(() => {
-    // Load from local storage
+    // Load from local storage on mount
     const savedTools = localStorage.getItem("burnrate_tools");
     const savedTeamSize = localStorage.getItem("burnrate_teamSize");
     const savedUseCase = localStorage.getItem("burnrate_useCase");
-    
-    if (savedTools) setTools(JSON.parse(savedTools));
-    if (savedTeamSize) setTeamSize(Number(savedTeamSize));
-    if (savedUseCase) setUseCase(savedUseCase as UseCase);
-    
-    setMounted(true);
+
+    const initialTools = savedTools ? JSON.parse(savedTools) as FormTool[] : [];
+    const initialTeamSize = savedTeamSize ? Number(savedTeamSize) : "";
+    const initialUseCase = savedUseCase ? (savedUseCase as UseCase) : "";
+
+    // Batch into a single render via startTransition
+    React.startTransition(() => {
+      setTools(initialTools);
+      setTeamSize(initialTeamSize);
+      setUseCase(initialUseCase);
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -58,7 +64,7 @@ export function SpendForm() {
     setTools(tools.filter(t => t.id !== id));
   };
 
-  const updateTool = (id: string, field: keyof FormTool, value: any) => {
+  const updateTool = (id: string, field: keyof FormTool, value: string | number | null) => {
     setTools(tools.map(t => {
       if (t.id === id) {
         const updated = { ...t, [field]: value };
@@ -99,6 +105,8 @@ export function SpendForm() {
       
       const data = await res.json();
       if (data.id) {
+        // Cache results in sessionStorage so the results page can display immediately
+        sessionStorage.setItem(`burnrate_audit_${data.id}`, JSON.stringify(data));
         router.push(`/audit/${data.id}`);
       } else {
         alert(data.error || "An error occurred");

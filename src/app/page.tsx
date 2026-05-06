@@ -21,7 +21,7 @@ export default function Home() {
         
         <p className="text-xl text-zinc-400 max-w-2xl mb-10 leading-relaxed">
           Most startups overspend on AI tools by 30-50%. 
-          Find out exactly where you're wasting money on Cursor, ChatGPT, Claude, and more.
+          Find out exactly where you&apos;re wasting money on Cursor, ChatGPT, Claude, and more.
           Instant results. No signup required.
         </p>
         
@@ -43,12 +43,12 @@ export default function Home() {
           <div className="flex flex-col">
             <Zap className="h-8 w-8 text-orange-500 mb-4" />
             <h3 className="text-lg font-semibold text-white mb-2">Instant Alternatives</h3>
-            <p className="text-sm text-zinc-400">Discover cheaper tools that map exactly to your team's use cases without losing capability.</p>
+            <p className="text-sm text-zinc-400">Discover cheaper tools that map exactly to your team&apos;s use cases without losing capability.</p>
           </div>
           <div className="flex flex-col">
             <Shield className="h-8 w-8 text-orange-500 mb-4" />
             <h3 className="text-lg font-semibold text-white mb-2">Unbiased & Secure</h3>
-            <p className="text-sm text-zinc-400">Hardcoded logic. No "hallucinated" savings. We don't ask for your email until after we show value.</p>
+            <p className="text-sm text-zinc-400">Hardcoded logic. No &quot;hallucinated&quot; savings. We don&apos;t ask for your email until after we show value.</p>
           </div>
         </div>
       </section>

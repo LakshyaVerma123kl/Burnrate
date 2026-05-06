@@ -95,7 +95,7 @@ If they are spending perfectly, commend them. Do not use markdown formatting.`;
     }
 
     // Final fallback: templated summary
-    const actionable = results.tools?.filter((t: any) => t.recommendation !== "keep").length || 0;
+    const actionable = results.tools?.filter((t: { recommendation: string }) => t.recommendation !== "keep").length || 0;
     const fallback = `Based on your audit, you could save $${results.totalMonthlySavings?.toFixed(2) || "0"}/month across your AI stack. ` +
       `We identified ${actionable} tool${actionable !== 1 ? "s" : ""} with optimization opportunities — review the breakdown below for specific actions.`;
     return NextResponse.json({ summary: fallback });

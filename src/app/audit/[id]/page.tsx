@@ -1,40 +1,75 @@
-import { supabase } from "@/lib/supabase";
-import { getAudit } from "@/lib/store";
-import { notFound } from "next/navigation";
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { CheckCircle, ArrowDownCircle, Replace } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuditResult, ToolAuditResult } from "@/lib/audit-engine";
 import { LeadCaptureModal } from "@/components/LeadCaptureModal";
 import { AiSummaryBox } from "@/components/AiSummaryBox";
 
-export const dynamic = "force-dynamic";
+function getInitialAudit(id: string): AuditResult | null {
+  if (typeof window === "undefined") return null;
+  const cached = sessionStorage.getItem(`burnrate_audit_${id}`);
+  if (!cached) return null;
+  try {
+    const parsed = JSON.parse(cached);
+    return {
+      tools: parsed.tools,
+      totalMonthlySavings: parsed.totalMonthlySavings,
+      totalAnnualSavings: parsed.totalAnnualSavings,
+    };
+  } catch {
+    return null;
+  }
+}
 
-export default async function AuditResultPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  let audit: AuditResult | null = null;
+export default function AuditResultPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const initialAudit = useMemo(() => getInitialAudit(id), [id]);
+  const [audit, setAudit] = useState<AuditResult | null>(initialAudit);
+  const [loading, setLoading] = useState(!initialAudit);
+  const [notFound, setNotFound] = useState(false);
 
-  // Try Supabase first
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("audits")
-      .select("results")
-      .eq("id", id)
-      .single();
+  useEffect(() => {
+    // If we already have data from sessionStorage, skip the fetch
+    if (audit) return;
 
-    if (!error && data) {
-      audit = typeof data.results === "string" ? JSON.parse(data.results) : data.results;
-    }
+    // Fallback: fetch from API (which tries Supabase)
+    fetch(`/api/audit?id=${id}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Not found");
+        return r.json();
+      })
+      .then((data) => {
+        setAudit(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setNotFound(true);
+        setLoading(false);
+      });
+  }, [id, audit]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-zinc-500 text-lg animate-pulse">Loading audit results...</div>
+      </div>
+    );
   }
 
-  // Fallback: in-memory store
-  if (!audit) {
-    const stored = getAudit(id);
-    if (stored) {
-      audit = stored.results;
-    }
+  if (notFound || !audit) {
+    return (
+      <div className="flex-1 flex items-center justify-center flex-col gap-4">
+        <h1 className="text-3xl font-bold text-white">Audit not found</h1>
+        <p className="text-zinc-400">This audit may have expired or the link is invalid.</p>
+        <Link href="/audit" className="text-orange-500 hover:underline">Run a new audit →</Link>
+      </div>
+    );
   }
-
-  if (!audit) notFound();
 
   const isHighSavings = audit.totalMonthlySavings > 500;
   const isOptimal = audit.totalMonthlySavings < 100;
@@ -57,7 +92,7 @@ export default async function AuditResultPage({ params }: { params: Promise<{ id
           {audit.tools.map((t: ToolAuditResult, i: number) => {
             const isKeep = t.recommendation === "keep";
             const Icon = isKeep ? CheckCircle : t.recommendation === "downgrade" ? ArrowDownCircle : Replace;
-            
+
             return (
               <Card key={i} className={`bg-black/50 border-white/10 ${t.monthlySavings > 0 ? "border-l-4 border-l-orange-500" : ""}`}>
                 <CardHeader className="pb-2">
@@ -67,7 +102,9 @@ export default async function AuditResultPage({ params }: { params: Promise<{ id
                         <Icon className={`h-5 w-5 ${isKeep ? "text-green-500" : "text-orange-500"}`} />
                         {t.toolName}
                       </CardTitle>
-                      <p className="text-sm text-zinc-400 mt-1">Currently paying ${t.currentMonthlySpend}/mo on {t.currentPlan}</p>
+                      <p className="text-sm text-zinc-400 mt-1">
+                        Currently paying ${t.currentMonthlySpend}/mo on {t.currentPlan}
+                      </p>
                     </div>
                     {t.monthlySavings > 0 && (
                       <div className="bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full text-sm font-semibold">
@@ -103,7 +140,7 @@ export default async function AuditResultPage({ params }: { params: Promise<{ id
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-zinc-300">
-                {isHighSavings 
+                {isHighSavings
                   ? "Your potential savings exceed $500/month. Book a consultation with Credex to restructure your AI infrastructure."
                   : isOptimal
                   ? "Your stack is highly optimized! Leave your email and we'll notify you when cheaper plans drop."
